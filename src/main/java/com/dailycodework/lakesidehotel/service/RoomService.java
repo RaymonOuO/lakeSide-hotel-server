@@ -1,5 +1,6 @@
 package com.dailycodework.lakesidehotel.service;
 
+import com.dailycodework.lakesidehotel.exception.InternalServerException;
 import com.dailycodework.lakesidehotel.exception.ResourceNotFoundException;
 import com.dailycodework.lakesidehotel.model.Room;
 import com.dailycodework.lakesidehotel.repository.RoomRepository;
@@ -53,5 +54,31 @@ public class RoomService implements IRoomService {
             return photoBlob.getBytes(1, (int) photoBlob.length());
         }
         return null;
+    }
+
+    @Override
+    public void deleteRoom(Long roomId) {
+        Optional<Room> theRoom = roomRepository.findById(roomId);
+        if (theRoom.isPresent()) {
+            roomRepository.deleteById(roomId);
+        }
+    }
+
+    @Override
+    public Room updateRoom(Long roomId, String roomType, BigDecimal roomPrice, byte[] photoByte) {
+        Room room =  roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+
+        if (roomType != null) room.setRoomType(roomType);
+        if (roomPrice != null) room.setRoomPrice(roomPrice);
+        if (photoByte != null && photoByte.length > 0) {
+            try {
+                room.setPhoto(new SerialBlob(photoByte));
+
+            } catch (SQLException exception) {
+                throw new InternalServerException("Fail updating room");
+            }
+        }
+        return roomRepository.save(room);
     }
 }
