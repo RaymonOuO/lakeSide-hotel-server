@@ -2,10 +2,10 @@ package com.dailycodework.lakesidehotel.controller;
 
 import com.dailycodework.lakesidehotel.exception.UserAlreadyExistsException;
 import com.dailycodework.lakesidehotel.model.User;
-//import com.dailycodework.lakesidehotel.request.LoginRequest;
-//import com.dailycodework.lakesidehotel.response.JwtResponse;
-//import com.dailycodework.lakesidehotel.security.jwt.JwtUtils;
-//import com.dailycodework.lakesidehotel.security.user.HotelUserDetails;
+import com.dailycodework.lakesidehotel.request.LoginRequest;
+import com.dailycodework.lakesidehotel.response.JwtResponse;
+import com.dailycodework.lakesidehotel.security.jwt.JwtUtils;
+import com.dailycodework.lakesidehotel.security.user.HotelUserDetails;
 import com.dailycodework.lakesidehotel.service.IUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +29,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthController {
     private final IUserService userService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
 
     @PostMapping("/register-user")
     public ResponseEntity<?> registerUser(@RequestBody User user){
@@ -39,5 +41,23 @@ public class AuthController {
         }catch (UserAlreadyExistsException e){
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest request){
+        Authentication authentication =
+                authenticationManager
+                        .authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtUtils.generateJwtTokenForUser(authentication);
+        HotelUserDetails userDetails = (HotelUserDetails) authentication.getPrincipal();
+        List<String> roles = userDetails.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority).toList();
+        return ResponseEntity.ok(new JwtResponse(
+                userDetails.getId(),
+                userDetails.getEmail(),
+                jwt,
+                roles));
     }
 }
